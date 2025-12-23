@@ -582,6 +582,16 @@ def initialize_services():
 @app.on_event("startup")
 async def startup_event():
     logger.info("🚀 Starting Tanker Data Management Chatbot...")
+    
+    # Initialize database if tables don't exist
+    try:
+        from init_db import init_database
+        logger.info("Checking database initialization...")
+        init_database()
+    except Exception as e:
+        logger.warning(f"Database initialization check failed: {e}")
+        logger.warning("Continuing anyway - make sure database is set up manually if needed.")
+    
     initialize_services()
 
 if __name__ == '__main__':
