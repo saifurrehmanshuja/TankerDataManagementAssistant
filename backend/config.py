@@ -3,6 +3,7 @@ Configuration file for Tanker Management System
 Uses environment variables with sensible defaults
 """
 import os
+import logging
 
 # Try to load environment variables from .env file if it exists
 try:
@@ -17,11 +18,34 @@ except ImportError:
     pass
 
 # Database Configuration
-POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
-POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "root")
-POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
-POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
-DATABASE_NAME = os.getenv("DATABASE_NAME", "tankerdb")
+# Support DATABASE_URL (common in Render) or individual components
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+if DATABASE_URL:
+    # Parse DATABASE_URL: postgresql://user:password@host:port/database
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(DATABASE_URL)
+        POSTGRES_USER = parsed.username
+        POSTGRES_PASSWORD = parsed.password
+        POSTGRES_HOST = parsed.hostname
+        POSTGRES_PORT = str(parsed.port) if parsed.port else "5432"
+        DATABASE_NAME = parsed.path.lstrip('/')
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.warning(f"Error parsing DATABASE_URL: {e}. Using individual environment variables.")
+        POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+        POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "root")
+        POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+        POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+        DATABASE_NAME = os.getenv("DATABASE_NAME", "tankerdb")
+else:
+    # Use individual environment variables
+    POSTGRES_USER = os.getenv("POSTGRES_USER", "postgres")
+    POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD", "root")
+    POSTGRES_HOST = os.getenv("POSTGRES_HOST", "localhost")
+    POSTGRES_PORT = os.getenv("POSTGRES_PORT", "5432")
+    DATABASE_NAME = os.getenv("DATABASE_NAME", "tankerdb")
 
 # OpenRouter API Configuration
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
