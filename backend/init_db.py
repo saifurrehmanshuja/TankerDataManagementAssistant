@@ -93,13 +93,23 @@ def init_database():
             try:
                 cursor.execute(statement)
                 executed_count += 1
-            except (errors.DuplicateTable, errors.DuplicateObject, errors.AlreadyExists) as e:
+            except (errors.DuplicateTable, errors.DuplicateObject) as e:
                 logger.debug(f"Already exists (skipping): {str(e)[:50]}")
+            except psycopg2.Error as e:
+                error_msg = str(e).lower()
+                error_code = getattr(e, 'pgcode', None)
+                # PostgreSQL error codes for "already exists" scenarios
+                # 42P07 = duplicate_table, 42710 = duplicate_object
+                if error_code in ('42P07', '42710') or 'already exists' in error_msg or 'duplicate' in error_msg:
+                    logger.debug(f"Already exists (skipping): {str(e)[:50]}")
+                else:
+                    logger.warning(f"Error executing statement: {str(e)[:150]}")
+                    logger.debug(f"Statement was: {statement[:100]}...")
             except Exception as e:
                 error_msg = str(e).lower()
                 # Ignore "already exists" errors
                 if 'already exists' not in error_msg and 'duplicate' not in error_msg:
-                    logger.warning(f"Error executing statement: {str(e)[:150]}")
+                    logger.warning(f"Unexpected error executing statement: {str(e)[:150]}")
                     logger.debug(f"Statement was: {statement[:100]}...")
         
         logger.info(f"✅ Executed {executed_count} statements successfully")
