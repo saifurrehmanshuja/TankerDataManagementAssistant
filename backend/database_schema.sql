@@ -160,8 +160,8 @@ ON CONFLICT (depot_name) DO NOTHING;
 
 -- Insert some common destinations
 INSERT INTO destinations (destination_name, location_lat, location_lon) VALUES
-    ('Customer X', 33.6844, 73.0479),
-    ('Customer Y', 31.5204, 74.3587),
-    ('Customer Z', 24.8607, 67.0011)
+    ('National Refinery Limited', 33.6844, 73.0479),
+    ('Total Parco Pakistan (TPP)', 31.5204, 74.3587),
+    ('Hub Power Services Limited (HPSL)', 24.8607, 67.0011)
 ON CONFLICT (destination_name) DO NOTHING;
 
