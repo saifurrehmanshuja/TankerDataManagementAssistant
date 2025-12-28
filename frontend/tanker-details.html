@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tanker Details</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="tanker-details.css">
+    <link rel="stylesheet" href="responsive.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAVj82th_8wrX5XRHWtbWgHuxaMe11StzQ&libraries=places"></script>
+</head>
+<body class="details-page">
+    <!-- Top Navigation Bar -->
+    <nav class="top-navbar">
+        <div class="navbar-container">
+            <a href="/dashboard.html" class="navbar-brand">
+                <span class="brand-icon">🚛</span>
+                <span class="brand-text">Tanker Management</span>
+            </a>
+            <div class="navbar-links">
+                <a href="/dashboard.html" class="nav-link">
+                    <span class="nav-icon">📊</span>
+                    <span class="nav-text">Dashboard</span>
+                </a>
+                    <a href="/tanker-list.html" class="nav-link">
+                        <span class="nav-icon">📋</span>
+                        <span class="nav-text">Tanker List</span>
+                    </a>
+                    <a href="/tanker-details.html" class="nav-link active">
+                        <span class="nav-icon">🔍</span>
+                        <span class="nav-text">Tanker Details</span>
+                    </a>
+                <a href="/chat.html" class="nav-link">
+                    <span class="nav-icon">💬</span>
+                    <span class="nav-text">Chat</span>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="details-container">
+        <header class="details-header">
+            <div class="header-content">
+                <h1 id="tankerTitle">Tanker Details</h1>
+                <p class="header-subtitle">View comprehensive information about individual tankers</p>
+            </div>
+        </header>
+
+        <div class="details-content">
+            <div id="loadingIndicator" class="loading-indicator">
+                <div class="skeleton-loader"></div>
+            </div>
+
+            <div id="tankerDetails" class="tanker-details hidden">
+                <!-- Basic Info Card -->
+                <div class="info-card">
+                    <h2>Basic Information</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Tanker ID</label>
+                            <div class="info-value" id="tankerId">-</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Driver</label>
+                            <div class="info-value" id="driverName">-</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Current Status</label>
+                            <div class="info-value">
+                                <span class="status-badge" id="currentStatus">-</span>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <label>Seal Status</label>
+                            <div class="info-value" id="sealStatus">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Location Card -->
+                <div class="info-card">
+                    <h2>Location Information</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Source Depot</label>
+                            <div class="info-value" id="sourceDepot">-</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Destination</label>
+                            <div class="info-value" id="destination">-</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Current City</label>
+                            <div class="info-value" id="currentCity">-</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Coordinates</label>
+                            <div class="info-value" id="coordinates">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Map Card -->
+                <div class="info-card map-card">
+                    <h2>Current Location</h2>
+                    <div id="map" class="map-container"></div>
+                </div>
+
+                <!-- Metrics Card -->
+                <div class="info-card">
+                    <h2>Metrics</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <label>Oil Volume</label>
+                            <div class="info-value" id="oilVolume">-</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Max Capacity</label>
+                            <div class="info-value" id="maxCapacity">-</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Trip Duration</label>
+                            <div class="info-value" id="tripDuration">-</div>
+                        </div>
+                        <div class="info-item">
+                            <label>Average Speed</label>
+                            <div class="info-value" id="avgSpeed">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ML Predictions Card -->
+                <div class="info-card">
+                    <h2>ML Predictions</h2>
+                    <div class="predictions-grid">
+                        <div class="prediction-item">
+                            <label>Predicted Arrival Time</label>
+                            <div class="prediction-value" id="arrivalTime">Not available</div>
+                        </div>
+                        <div class="prediction-item">
+                            <label>Delay Probability</label>
+                            <div class="prediction-value" id="delayProbability">Not available</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- History Card -->
+                <div class="info-card">
+                    <h2>Status History</h2>
+                    <div id="statusHistory" class="history-timeline">
+                        <!-- History items will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Chatbot Widget -->
+    <div id="chatbotWidget" class="chatbot-widget">
+        <div id="chatbotToggle" class="chatbot-toggle">
+            <span>💬</span>
+        </div>
+        <div id="chatbotWindow" class="chatbot-window hidden">
+            <div class="chatbot-header">
+                <h3>Tanker Assistant</h3>
+                <button id="chatbotClose" class="close-btn">×</button>
+            </div>
+            <div id="chatbotMessages" class="chatbot-messages"></div>
+            <div class="chatbot-input-container">
+                <input type="text" id="chatbotInput" placeholder="Ask about this tanker..." />
+                <button type="button" id="chatbotSend">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="tanker-details.js"></script>
+    <script src="chatbot-widget.js"></script>
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tanker List - All Tankers</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="responsive.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+</head>
+<body class="dashboard-page">
+    <div class="dashboard-container">
+        <!-- Top Navigation Bar -->
+        <nav class="top-navbar">
+            <div class="navbar-container">
+                <a href="/dashboard.html" class="navbar-brand">
+                    <span class="brand-icon">🚛</span>
+                    <span class="brand-text">Tanker Management</span>
+                </a>
+                <div class="navbar-links">
+                    <a href="/dashboard.html" class="nav-link">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">Dashboard</span>
+                    </a>
+                    <a href="/tanker-list.html" class="nav-link active">
+                        <span class="nav-icon">📋</span>
+                        <span class="nav-text">Tanker List</span>
+                    </a>
+                    <a href="/tanker-details.html" class="nav-link">
+                        <span class="nav-icon">🔍</span>
+                        <span class="nav-text">Tanker Details</span>
+                    </a>
+                    <a href="/chat.html" class="nav-link">
+                        <span class="nav-icon">💬</span>
+                        <span class="nav-text">Chat</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <header class="dashboard-header">
+            <div class="header-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div>
+                        <h1>📋 Tanker List</h1>
+                        <p class="header-subtitle">Complete list of all tankers with detailed information</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <span id="modeIndicator" class="mode-indicator live">● LIVE</span>
+                        <button id="resumeLiveBtn" onclick="resumeLive()" class="resume-live-btn" style="display: none;">▶ Resume Live</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="dashboard-content">
+            <!-- Filters Bar -->
+            <div class="filters-bar">
+                <input type="text" id="searchInput" placeholder="Search by Tanker ID, Driver, or City..." class="search-input">
+                <select id="statusFilter" class="filter-select">
+                    <option value="">All Statuses</option>
+                    <option value="At Source">At Source</option>
+                    <option value="Loading">Loading</option>
+                    <option value="In Transit">In Transit</option>
+                    <option value="Reached Destination">Reached Destination</option>
+                    <option value="Unloading">Unloading</option>
+                    <option value="Delayed">Delayed</option>
+                </select>
+                <select id="depotFilter" class="filter-select">
+                    <option value="">All Depots</option>
+                </select>
+                <select id="cityFilter" class="filter-select">
+                    <option value="">All Cities</option>
+                </select>
+                <select id="destinationFilter" class="filter-select">
+                    <option value="">All Destinations</option>
+                </select>
+                <input type="date" id="dateFromFilter" class="filter-select" placeholder="From Date">
+                <input type="date" id="dateToFilter" class="filter-select" placeholder="To Date">
+            </div>
+
+            <!-- Data Table Section -->
+            <div class="table-section">
+                <div class="section-header">
+                    <h2>Tanker Details</h2>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <label for="itemsPerPageSelect" style="font-size: 14px; color: #666; margin: 0;">Rows per page:</label>
+                            <select id="itemsPerPageSelect" class="filter-select" style="width: auto; min-width: 80px;">
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                                <option value="50" selected>50</option>
+                                <option value="100">100</option>
+                            </select>
+                        </div>
+                        <button class="export-btn" onclick="exportTable()">📥 Export CSV</button>
+                    </div>
+                </div>
+                <div class="table-container">
+                    <table class="tankers-table">
+                        <thead>
+                            <tr>
+                                <th>Tanker ID</th>
+                                <th>Driver</th>
+                                <th>Status</th>
+                                <th>Source Depot</th>
+                                <th>Destination</th>
+                                <th>Current City</th>
+                                <th>Volume (L)</th>
+                                <th>Speed (km/h)</th>
+                                <th>Last Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tankersTableBody">
+                            <tr>
+                                <td colspan="10" class="loading-row">
+                                    <div class="skeleton-loader"></div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination">
+                    <button id="prevPage" class="page-btn" disabled>Previous</button>
+                    <span id="pageInfo">Page 1</span>
+                    <button id="nextPage" class="page-btn">Next</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Chatbot Widget -->
+    <div id="chatbotWidget" class="chatbot-widget">
+        <div id="chatbotToggle" class="chatbot-toggle">
+            <span>💬</span>
+        </div>
+        <div id="chatbotWindow" class="chatbot-window hidden">
+            <div class="chatbot-header">
+                <h3>Tanker Assistant</h3>
+                <button id="chatbotClose" class="close-btn">×</button>
+            </div>
+            <div id="chatbotMessages" class="chatbot-messages"></div>
+            <div class="chatbot-input-container">
+                <input type="text" id="chatbotInput" placeholder="Ask about tankers..." />
+                <button type="button" id="chatbotSend">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="tanker-list.js"></script>
+    <script src="chatbot-widget.js"></script>
+</body>
+</html>
+

@@ -25,11 +25,61 @@ class TankerDataGenerator:
         self.thread = None
         self.status_transition_thread = None
         
-        # Realistic data pools
+        # Realistic Pakistani driver names pool (200+ names)
         self.driver_names = [
-            "Ahmed Khan", "Mohammad Ali", "Fatima Noor", "Bilal Hassan",
-            "Sara Ahmed", "Hassan Malik", "Ayesha Khan", "Usman Ali",
-            "Zainab Sheikh", "Omar Farooq", "Nida Hussain", "Tariq Mehmood"
+            "Muhammad Usman", "Ali Khan", "Ahmed Raza", "Hassan Ali", "Salman Ahmed",
+            "Bilal Hussain", "Umar Farooq", "Faisal Mehmood", "Zain Ali", "Hamza Khan",
+            "Usman Ali", "Tariq Mehmood", "Bilal Hassan", "Omar Farooq", "Hassan Malik",
+            "Ahmed Khan", "Mohammad Ali", "Ibrahim Khan", "Yusuf Ali", "Zain Abbas",
+            "Hassan Raza", "Ali Raza", "Muhammad Ali", "Ahmed Ali", "Usman Raza",
+            "Bilal Khan", "Hamza Ali", "Zain Khan", "Omar Khan", "Faisal Khan",
+            "Salman Khan", "Tariq Ali", "Hassan Khan", "Ahmed Mehmood", "Usman Mehmood",
+            "Bilal Mehmood", "Ali Mehmood", "Muhammad Raza", "Ahmed Hassan", "Usman Hassan",
+            "Hassan Hassan", "Bilal Raza", "Ali Hassan", "Omar Raza", "Faisal Raza",
+            "Salman Raza", "Tariq Raza", "Zain Raza", "Hamza Raza", "Ibrahim Raza",
+            "Yusuf Raza", "Muhammad Hassan", "Ahmed Abbas", "Usman Abbas", "Hassan Abbas",
+            "Bilal Abbas", "Ali Abbas", "Omar Abbas", "Faisal Abbas", "Salman Abbas",
+            "Tariq Abbas", "Zain Abbas", "Hamza Abbas", "Ibrahim Abbas", "Yusuf Abbas",
+            "Muhammad Abbas", "Ahmed Sheikh", "Usman Sheikh", "Hassan Sheikh", "Bilal Sheikh",
+            "Ali Sheikh", "Omar Sheikh", "Faisal Sheikh", "Salman Sheikh", "Tariq Sheikh",
+            "Zain Sheikh", "Hamza Sheikh", "Ibrahim Sheikh", "Yusuf Sheikh", "Muhammad Sheikh",
+            "Ahmed Malik", "Usman Malik", "Hassan Malik", "Bilal Malik", "Ali Malik",
+            "Omar Malik", "Faisal Malik", "Salman Malik", "Tariq Malik", "Zain Malik",
+            "Hamza Malik", "Ibrahim Malik", "Yusuf Malik", "Muhammad Malik", "Ahmed Noor",
+            "Usman Noor", "Hassan Noor", "Bilal Noor", "Ali Noor", "Omar Noor",
+            "Faisal Noor", "Salman Noor", "Tariq Noor", "Zain Noor", "Hamza Noor",
+            "Ibrahim Noor", "Yusuf Noor", "Muhammad Noor", "Ahmed Butt", "Usman Butt",
+            "Hassan Butt", "Bilal Butt", "Ali Butt", "Omar Butt", "Faisal Butt",
+            "Salman Butt", "Tariq Butt", "Zain Butt", "Hamza Butt", "Ibrahim Butt",
+            "Yusuf Butt", "Muhammad Butt", "Ahmed Qureshi", "Usman Qureshi", "Hassan Qureshi",
+            "Bilal Qureshi", "Ali Qureshi", "Omar Qureshi", "Faisal Qureshi", "Salman Qureshi",
+            "Tariq Qureshi", "Zain Qureshi", "Hamza Qureshi", "Ibrahim Qureshi", "Yusuf Qureshi",
+            "Muhammad Qureshi", "Ahmed Hashmi", "Usman Hashmi", "Hassan Hashmi", "Bilal Hashmi",
+            "Ali Hashmi", "Omar Hashmi", "Faisal Hashmi", "Salman Hashmi", "Tariq Hashmi",
+            "Zain Hashmi", "Hamza Hashmi", "Ibrahim Hashmi", "Yusuf Hashmi", "Muhammad Hashmi",
+            "Ahmed Javed", "Usman Javed", "Hassan Javed", "Bilal Javed", "Ali Javed",
+            "Omar Javed", "Faisal Javed", "Salman Javed", "Tariq Javed", "Zain Javed",
+            "Hamza Javed", "Ibrahim Javed", "Yusuf Javed", "Muhammad Javed", "Ahmed Aslam",
+            "Usman Aslam", "Hassan Aslam", "Bilal Aslam", "Ali Aslam", "Omar Aslam",
+            "Faisal Aslam", "Salman Aslam", "Tariq Aslam", "Zain Aslam", "Hamza Aslam",
+            "Ibrahim Aslam", "Yusuf Aslam", "Muhammad Aslam", "Ahmed Nadeem", "Usman Nadeem",
+            "Hassan Nadeem", "Bilal Nadeem", "Ali Nadeem", "Omar Nadeem", "Faisal Nadeem",
+            "Salman Nadeem", "Tariq Nadeem", "Zain Nadeem", "Hamza Nadeem", "Ibrahim Nadeem",
+            "Yusuf Nadeem", "Muhammad Nadeem", "Ahmed Saeed", "Usman Saeed", "Hassan Saeed",
+            "Bilal Saeed", "Ali Saeed", "Omar Saeed", "Faisal Saeed", "Salman Saeed",
+            "Tariq Saeed", "Zain Saeed", "Hamza Saeed", "Ibrahim Saeed", "Yusuf Saeed",
+            "Muhammad Saeed", "Ahmed Waseem", "Usman Waseem", "Hassan Waseem", "Bilal Waseem",
+            "Ali Waseem", "Omar Waseem", "Faisal Waseem", "Salman Waseem", "Tariq Waseem",
+            "Zain Waseem", "Hamza Waseem", "Ibrahim Waseem", "Yusuf Waseem", "Muhammad Waseem",
+            "Ahmed Naeem", "Usman Naeem", "Hassan Naeem", "Bilal Naeem", "Ali Naeem",
+            "Omar Naeem", "Faisal Naeem", "Salman Naeem", "Tariq Naeem", "Zain Naeem",
+            "Hamza Naeem", "Ibrahim Naeem", "Yusuf Naeem", "Muhammad Naeem", "Ahmed Shafiq",
+            "Usman Shafiq", "Hassan Shafiq", "Bilal Shafiq", "Ali Shafiq", "Omar Shafiq",
+            "Faisal Shafiq", "Salman Shafiq", "Tariq Shafiq", "Zain Shafiq", "Hamza Shafiq",
+            "Ibrahim Shafiq", "Yusuf Shafiq", "Muhammad Shafiq", "Ahmed Tariq", "Usman Tariq",
+            "Hassan Tariq", "Bilal Tariq", "Ali Tariq", "Omar Tariq", "Faisal Tariq",
+            "Salman Tariq", "Tariq Tariq", "Zain Tariq", "Hamza Tariq", "Ibrahim Tariq",
+            "Yusuf Tariq", "Muhammad Tariq"
         ]
         
         self.depots = [
@@ -38,16 +88,25 @@ class TankerDataGenerator:
             ("Karachi", 24.8607, 67.0011),
             ("Rawalpindi", 33.5651, 73.0169),
             ("Faisalabad", 31.4504, 73.1350),
-            ("Multan", 30.1575, 71.5249)
+            ("Multan", 30.1575, 71.5249),
+            ("Hyderabad", 25.3960, 68.3578),
+            ("Peshawar", 34.0151, 71.5249),
+            ("Quetta", 30.1798, 66.9750),
+            ("Sukkur", 27.7022, 68.8581)
         ]
         
+        # Realistic Pakistani oil, fuel, and energy companies
         self.destinations = [
-            ("Customer X", 33.6844, 73.0479),
-            ("Customer Y", 31.5204, 74.3587),
-            ("Customer Z", 24.8607, 67.0011),
-            ("Customer A", 33.5651, 73.0169),
-            ("Customer B", 31.4504, 73.1350),
-            ("Customer C", 30.1575, 71.5249)
+            ("Pakistan State Oil (PSO)", 24.8607, 67.0011),  # Karachi
+            ("Shell Pakistan Limited (SPL)", 31.5204, 74.3587),  # Lahore
+            ("Total Parco Pakistan (TPP)", 33.6844, 73.0479),  # Islamabad
+            ("National Refinery Limited", 24.8607, 67.0011),  # Karachi
+            ("Attock Refinery Limited (ARL)", 33.5651, 73.0169),  # Rawalpindi
+            ("Hub Power Services Limited (HPSL)", 24.8607, 67.0011),  # Karachi
+            ("Cnergyico PK Limited", 24.8607, 67.0011),  # Karachi
+            ("Byco Petroleum Pakistan Limited", 24.8607, 67.0011),  # Karachi
+            ("Engro Energy", 24.8607, 67.0011),  # Karachi
+            ("Pak-Arab Refinery Limited (PARCO)", 31.4504, 73.1350)  # Faisalabad
         ]
         
         self.statuses = ["At Source", "In Transit", "Reached Destination", "Delayed", "Loading", "Unloading"]
@@ -382,6 +441,19 @@ class TankerDataGenerator:
                     
                     # Update seal status
                     new_seal = "Sealed" if new_status in ["In Transit", "Reached Destination"] else "Open"
+
+                    # Ensure speed/trip duration are populated when moving to In Transit
+                    current_speed = tanker_dict.get("avg_speed_kmh")
+                    current_duration = tanker_dict.get("trip_duration_hours")
+                    if new_status == "In Transit":
+                        if not current_speed or float(current_speed) <= 0:
+                            current_speed = round(random.uniform(60, 80), 2)
+                        if not current_duration or float(current_duration) <= 0:
+                            current_duration = round(random.uniform(1.0, 6.0), 2)
+                    else:
+                        # Non-transit statuses should not carry a moving speed
+                        current_speed = 0
+                        current_duration = 0
                     
                     cursor.execute("""
                         UPDATE tankers SET
@@ -389,11 +461,13 @@ class TankerDataGenerator:
                             current_location_lat = %s,
                             current_location_lon = %s,
                             seal_status = %s,
+                            trip_duration_hours = %s,
+                            avg_speed_kmh = %s,
                             status_changed_at = CURRENT_TIMESTAMP,
                             last_update = CURRENT_TIMESTAMP,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE LOWER(tanker_id) = LOWER(%s)
-                    """, (new_status, new_lat, new_lon, new_seal, tanker_id))
+                    """, (new_status, new_lat, new_lon, new_seal, current_duration, current_speed, tanker_id))
                     
                     # Add to history
                     cursor.execute("""
@@ -415,6 +489,22 @@ class TankerDataGenerator:
                     """, (new_status, new_lat, new_lon, new_seal, tanker_id))
                     
                     logger.info(f"Status transition: {tanker_id} {status} -> {new_status}")
+                    
+                    # Broadcast WebSocket update for status transition
+                    try:
+                        import sys
+                        if 'app' in sys.modules:
+                            from app import manager
+                            # Use pending message queue for background threads
+                            manager.add_pending_message({
+                                "type": "status_transition",
+                                "tanker_id": tanker_id,
+                                "old_status": status,
+                                "new_status": new_status,
+                                "timestamp": datetime.now().isoformat()
+                            })
+                    except Exception as e:
+                        logger.debug(f"Could not add WebSocket message: {e}")
             
             conn.commit()
             cursor.close()
@@ -431,6 +521,7 @@ class TankerDataGenerator:
             # Generate 1-3 new or update existing tankers
             num_operations = random.randint(1, 3)
             existing_ids = self.get_existing_tanker_ids()
+            updated_tankers = []
             
             for _ in range(num_operations):
                 # 70% chance to update existing, 30% to create new
@@ -440,8 +531,26 @@ class TankerDataGenerator:
                 else:
                     tanker_data = self.generate_realistic_tanker()
                 
-                self.insert_or_update_tanker(tanker_data)
-                logger.info(f"Generated/Updated tanker: {tanker_data['tanker_id']}")
+                if self.insert_or_update_tanker(tanker_data):
+                    updated_tankers.append(tanker_data['tanker_id'])
+                    logger.info(f"Generated/Updated tanker: {tanker_data['tanker_id']}")
+            
+            # Broadcast WebSocket update if tankers were updated
+            if updated_tankers:
+                try:
+                    # Import here to avoid circular dependency
+                    import sys
+                    if 'app' in sys.modules:
+                        from app import manager
+                        # Use pending message queue for background threads
+                        manager.add_pending_message({
+                            "type": "tanker_update",
+                            "tanker_ids": updated_tankers,
+                            "timestamp": datetime.now().isoformat()
+                        })
+                except Exception as e:
+                    # WebSocket not critical, log and continue
+                    logger.debug(f"Could not add WebSocket message: {e}")
             
         except Exception as e:
             logger.error(f"Error in data generation cycle: {e}")

@@ -46,7 +46,21 @@ models/*.pkl
 models/*.joblib
 *.db
 *.sqlite
+backend/models/
+models/
 
 # Logs
 *.log
+*.log.*
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.cert
+
+# Render
+.render/
 

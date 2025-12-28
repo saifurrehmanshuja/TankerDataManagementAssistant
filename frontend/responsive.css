@@ -1,0 +1,98 @@
+/* ============================================
+   GLOBAL RESPONSIVE STYLES
+   Shared across all pages
+   ============================================ */
+
+/* Base responsive utilities */
+* {
+    -webkit-tap-highlight-color: transparent;
+}
+
+html {
+    font-size: 16px;
+}
+
+/* Prevent horizontal scroll */
+body {
+    overflow-x: hidden;
+    width: 100%;
+}
+
+/* Responsive images and media */
+img, video, canvas {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Touch-friendly buttons */
+button, .btn, a.button {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+}
+
+/* Mobile-first table responsiveness */
+@media (max-width: 768px) {
+    .table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        position: relative;
+    }
+
+    .table-wrapper::before,
+    .table-wrapper::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 20px;
+        z-index: 1;
+        pointer-events: none;
+    }
+
+    .table-wrapper::before {
+        left: 0;
+        background: linear-gradient(to right, rgba(245, 247, 250, 0.9), transparent);
+    }
+
+    .table-wrapper::after {
+        right: 0;
+        background: linear-gradient(to left, rgba(245, 247, 250, 0.9), transparent);
+    }
+}
+
+/* Chart responsiveness */
+@media (max-width: 768px) {
+    canvas {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+}
+
+/* Form elements - prevent zoom on iOS */
+@media (max-width: 768px) {
+    input[type="text"],
+    input[type="search"],
+    input[type="email"],
+    input[type="tel"],
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+}
+
+/* Smooth scrolling */
+@media (prefers-reduced-motion: no-preference) {
+    html {
+        scroll-behavior: smooth;
+    }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .status-badge,
+    .kpi-icon {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+}
+

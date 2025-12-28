@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: tanker-management-api
+    env: python
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn app:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: PORT
+        fromService:
+          type: web
+          name: tanker-management-api
+          property: port
+    healthCheckPath: /health
+
+databases:
+  - name: tankerdb
+    databaseName: tankerdb
+    user: tankeruser
+

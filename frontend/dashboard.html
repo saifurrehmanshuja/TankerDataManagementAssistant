@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tanker Dashboard - Analytics & Monitoring</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="dashboard.css">
+    <link rel="stylesheet" href="responsive.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body class="dashboard-page">
+    <div class="dashboard-container">
+        <!-- Top Navigation Bar -->
+        <nav class="top-navbar">
+            <div class="navbar-container">
+                <a href="/dashboard.html" class="navbar-brand">
+                    <span class="brand-icon">🚛</span>
+                    <span class="brand-text">Tanker Management</span>
+                </a>
+                <div class="navbar-links">
+                    <a href="/dashboard.html" class="nav-link active">
+                        <span class="nav-icon">📊</span>
+                        <span class="nav-text">Dashboard</span>
+                    </a>
+                    <a href="/tanker-list.html" class="nav-link">
+                        <span class="nav-icon">📋</span>
+                        <span class="nav-text">Tanker List</span>
+                    </a>
+                    <a href="/tanker-details.html" class="nav-link">
+                        <span class="nav-icon">🔍</span>
+                        <span class="nav-text">Tanker Details</span>
+                    </a>
+                    <a href="/chat.html" class="nav-link">
+                        <span class="nav-icon">💬</span>
+                        <span class="nav-text">Chat</span>
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <header class="dashboard-header">
+            <div class="header-content">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <h1>🚛 Tanker Operations Dashboard</h1>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <button onclick="exportDashboard()" class="export-dashboard-btn">📥 Export Dashboard</button>
+                        <span id="modeIndicator" class="mode-indicator live">● LIVE</span>
+                        <button id="resumeLiveBtn" onclick="resumeLive()" class="resume-live-btn" style="display: none;">▶ Resume Live</button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="dashboard-content">
+            <!-- KPI Cards Section -->
+            <div class="kpi-section">
+                <div class="kpi-card">
+                    <div class="kpi-icon">🚛</div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">Total Tankers</div>
+                        <div class="kpi-value" id="kpiTotal">-</div>
+                        <div class="kpi-change" id="kpiTotalChange">-</div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">🚚</div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">In Transit</div>
+                        <div class="kpi-value" id="kpiInTransit">-</div>
+                        <div class="kpi-change" id="kpiInTransitChange">-</div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">⏱️</div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">Delayed</div>
+                        <div class="kpi-value delayed" id="kpiDelayed">-</div>
+                        <div class="kpi-change" id="kpiDelayedChange">-</div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">⛽</div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">Avg Volume</div>
+                        <div class="kpi-value" id="kpiAvgVolume">-</div>
+                        <div class="kpi-change" id="kpiAvgVolumeChange">-</div>
+                    </div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">📊</div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">On-Time Rate</div>
+                        <div class="kpi-value" id="kpiOnTime">-</div>
+                        <div class="kpi-change" id="kpiOnTimeChange">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters Bar -->
+            <div class="filters-bar">
+                <input type="text" id="searchInput" placeholder="Search by Tanker ID, Driver, or City..." class="search-input">
+                <select id="statusFilter" class="filter-select">
+                    <option value="">All Statuses</option>
+                    <option value="At Source">At Source</option>
+                    <option value="Loading">Loading</option>
+                    <option value="In Transit">In Transit</option>
+                    <option value="Reached Destination">Reached Destination</option>
+                    <option value="Unloading">Unloading</option>
+                    <option value="Delayed">Delayed</option>
+                </select>
+                <select id="depotFilter" class="filter-select">
+                    <option value="">All Depots</option>
+                </select>
+                <select id="cityFilter" class="filter-select">
+                    <option value="">All Cities</option>
+                </select>
+                <select id="destinationFilter" class="filter-select">
+                    <option value="">All Destinations</option>
+                </select>
+                <input type="date" id="dateFromFilter" class="filter-select" placeholder="From Date">
+                <input type="date" id="dateToFilter" class="filter-select" placeholder="To Date">
+            </div>
+
+            <!-- Charts Section -->
+            <div class="charts-section">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Status Distribution</h3>
+                        <button class="chart-export-btn" onclick="exportChart('statusChart')">📥</button>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Tankers by City</h3>
+                        <button class="chart-export-btn" onclick="exportChart('cityChart')">📥</button>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="cityChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Destination Distribution</h3>
+                        <button class="chart-export-btn" onclick="exportChart('destinationChart')">📥</button>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="destinationChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Volume Analysis</h3>
+                        <button class="chart-export-btn" onclick="exportChart('volumeChart')">📥</button>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="volumeChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Delay Analysis</h3>
+                        <button class="chart-export-btn" onclick="exportChart('delayChart')">📥</button>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="delayChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3>Speed Distribution</h3>
+                        <button class="chart-export-btn" onclick="exportChart('speedChart')">📥</button>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="speedChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card full-width">
+                    <div class="chart-header">
+                        <h3>Status Trends Over Time</h3>
+                        <button class="chart-export-btn" onclick="exportChart('trendChart')">📥</button>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Chatbot Widget -->
+    <div id="chatbotWidget" class="chatbot-widget">
+        <div id="chatbotToggle" class="chatbot-toggle">
+            <span>💬</span>
+        </div>
+        <div id="chatbotWindow" class="chatbot-window hidden">
+            <div class="chatbot-header">
+                <h3>Tanker Assistant</h3>
+                <button id="chatbotClose" class="close-btn">×</button>
+            </div>
+            <div id="chatbotMessages" class="chatbot-messages"></div>
+            <div class="chatbot-input-container">
+                <input type="text" id="chatbotInput" placeholder="Ask about tankers..." />
+                <button type="button" id="chatbotSend">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="dashboard-analytics.js"></script>
+    <script src="dashboard.js"></script>
+    <script src="chatbot-widget.js"></script>
+</body>
+</html>
+

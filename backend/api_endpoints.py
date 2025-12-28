@@ -12,6 +12,7 @@ from config import (
     POSTGRES_PORT, DATABASE_NAME
 )
 from ml_pipeline import get_ml_pipeline
+from city_mapper import get_city_from_coords
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -106,13 +107,27 @@ async def get_all_tankers(
         cursor.execute(query, params)
         tankers = cursor.fetchall()
         
+        # Add city names to each tanker
+        tankers_list = []
+        for tanker in tankers:
+            tanker_dict = dict(tanker)
+            # Add current city name
+            if tanker_dict.get('current_location_lat') and tanker_dict.get('current_location_lon'):
+                tanker_dict['current_city'] = get_city_from_coords(
+                    float(tanker_dict['current_location_lat']),
+                    float(tanker_dict['current_location_lon'])
+                )
+            else:
+                tanker_dict['current_city'] = "Unknown Location"
+            tankers_list.append(tanker_dict)
+        
         cursor.close()
         conn.close()
         
         return {
             'success': True,
-            'count': len(tankers),
-            'tankers': [dict(t) for t in tankers]
+            'count': len(tankers_list),
+            'tankers': [make_json_serializable(t) for t in tankers_list]
         }
         
     except HTTPException:
@@ -163,8 +178,18 @@ async def get_tanker_by_id(tanker_id: str):
         conn.close()
         
         if tanker:
+            # Convert to dict and add city name
+            tanker_dict = dict(tanker)
+            if tanker_dict.get('current_location_lat') and tanker_dict.get('current_location_lon'):
+                tanker_dict['current_city'] = get_city_from_coords(
+                    float(tanker_dict['current_location_lat']),
+                    float(tanker_dict['current_location_lon'])
+                )
+            else:
+                tanker_dict['current_city'] = "Unknown Location"
+            
             # Convert to JSON-serializable format
-            serializable_tanker = make_json_serializable(dict(tanker))
+            serializable_tanker = make_json_serializable(tanker_dict)
             return {
                 'success': True,
                 'tanker': serializable_tanker
@@ -400,3 +425,123 @@ async def health():
         'service': 'tanker-management-api',
         'timestamp': datetime.now().isoformat()
     }
+
+
+@router.get('/analytics/by-city')
+async def get_analytics_by_city():
+    """Get analytics grouped by city"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            raise HTTPException(status_code=500, detail="Database connection failed")
+        
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get all tankers with their locations
+        cursor.execute("""
+            SELECT 
+                t.tanker_id,
+                t.current_status,
+                t.current_location_lat,
+                t.current_location_lon,
+                t.seal_status
+            FROM tankers t
+        """)
+        
+        tankers = cursor.fetchall()
+        
+        # Group by city
+        city_stats = {}
+        for tanker in tankers:
+            tanker_dict = dict(tanker)
+            if tanker_dict.get('current_location_lat') and tanker_dict.get('current_location_lon'):
+                city = get_city_from_coords(
+                    float(tanker_dict['current_location_lat']),
+                    float(tanker_dict['current_location_lon'])
+                )
+            else:
+                city = "Unknown Location"
+            
+            if city not in city_stats:
+                city_stats[city] = {
+                    'total': 0,
+                    'in_transit': 0,
+                    'at_source': 0,
+                    'delayed': 0,
+                    'loading': 0,
+                    'unloading': 0,
+                    'reached_destination': 0
+                }
+            
+            city_stats[city]['total'] += 1
+            status = tanker_dict.get('current_status', '').lower().replace(' ', '_')
+            if status in city_stats[city]:
+                city_stats[city][status] = city_stats[city].get(status, 0) + 1
+        
+        cursor.close()
+        conn.close()
+        
+        return {
+            'success': True,
+            'analytics': make_json_serializable(city_stats)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching city analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get('/analytics/delays')
+async def get_delay_analytics(
+    days: int = Query(7, ge=1, le=365, description="Number of days")
+):
+    """Get delay analytics"""
+    try:
+        conn = get_db_connection()
+        if not conn:
+            raise HTTPException(status_code=500, detail="Database connection failed")
+        
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        
+        # Get delay statistics
+        cursor.execute("""
+            SELECT 
+                COUNT(*) FILTER (WHERE current_status = 'Delayed') as current_delayed,
+                COUNT(*) as total_tankers,
+                COUNT(*) FILTER (WHERE current_status = 'In Transit') as in_transit,
+                AVG(trip_duration_hours::numeric) FILTER (WHERE current_status = 'In Transit') as avg_transit_time
+            FROM tankers
+        """)
+        
+        current_stats = dict(cursor.fetchone())
+        
+        # Get historical delay trends
+        cursor.execute("""
+            SELECT 
+                DATE(recorded_at) as date,
+                COUNT(*) FILTER (WHERE status = 'Delayed') as delayed_count,
+                COUNT(*) as total_records
+            FROM tanker_history
+            WHERE recorded_at >= CURRENT_TIMESTAMP - INTERVAL '%s days'
+            GROUP BY DATE(recorded_at)
+            ORDER BY date DESC
+        """, (days,))
+        
+        trends = [dict(row) for row in cursor.fetchall()]
+        
+        cursor.close()
+        conn.close()
+        
+        return {
+            'success': True,
+            'current': make_json_serializable(current_stats),
+            'trends': make_json_serializable(trends)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching delay analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

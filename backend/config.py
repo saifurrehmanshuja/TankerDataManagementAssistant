@@ -48,11 +48,12 @@ else:
     DATABASE_NAME = os.getenv("DATABASE_NAME", "tankerdb")
 
 # OpenRouter API Configuration
-OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
 if not OPENROUTER_API_KEY:
-    raise ValueError(
-        "OPENROUTER_API_KEY environment variable is required.\n"
-        "Please create a .env file in the backend directory with:\n"
+    logger = logging.getLogger(__name__)
+    logger.warning(
+        "OPENROUTER_API_KEY not set. Chatbot will use fallback responses.\n"
+        "To enable AI features, create a .env file in the backend directory with:\n"
         "OPENROUTER_API_KEY=your_api_key_here\n\n"
         "Or set it as an environment variable before running the app."
     )
