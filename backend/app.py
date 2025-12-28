@@ -1034,10 +1034,17 @@ async def health():
 @app.get("/api/health")
 async def api_health():
     """Detailed health check endpoint"""
+    # Lazy-load generator check to avoid unnecessary initialization
+    try:
+        generator = get_generator()
+        generator_status = 'running' if generator.running else 'stopped'
+    except Exception:
+        generator_status = 'unknown'
+    
     return {
         'status': 'healthy', 
         'service': 'tanker-chatbot',
-        'data_generator': 'running' if get_generator().running else 'stopped',
+        'data_generator': generator_status,
         'timestamp': datetime.now().isoformat()
     }
 
@@ -1068,22 +1075,21 @@ async def websocket_tankers(websocket: WebSocket):
         manager.disconnect(websocket)
 
 def initialize_services():
-    """Initialize background services"""
+    """Initialize background services - optimized for fast startup"""
     try:
-        # Start data generator
+        # Start data generator (non-blocking)
         generator = get_generator()
         generator.start()
-        logger.info("✅ Data generator started")
+        logger.info("Data generator started")
         
-        # Load ML models
-        ml_pipeline = get_ml_pipeline()
-        ml_pipeline.load_models()
-        logger.info("✅ ML pipeline initialized")
+        # ML models are now lazy-loaded - only load when prediction endpoints are called
+        # This significantly reduces startup time
+        logger.info("ML pipeline will load models on-demand")
         
-        # Start ML retrain scheduler
+        # Start ML retrain scheduler (non-blocking)
         retrain_scheduler = get_retrain_scheduler()
         retrain_scheduler.start()
-        logger.info("✅ ML retrain scheduler started")
+        logger.info("ML retrain scheduler started")
         
         # Schedule initial ML training (in background thread)
         # Wait longer to allow data generator to create enough samples
@@ -1095,6 +1101,7 @@ def initialize_services():
             logger.info(f"ML training will start after {wait_time} seconds to allow data accumulation...")
             time.sleep(wait_time)
             try:
+                ml_pipeline = get_ml_pipeline()
                 ml_pipeline.train_all_models()
             except Exception as e:
                 logger.error(f"Error in initial ML training: {e}")
@@ -1108,18 +1115,26 @@ def initialize_services():
 # Initialize services on startup
 @app.on_event("startup")
 async def startup_event():
-    logger.info("🚀 Starting Tanker Data Management Chatbot...")
+    logger.info("Starting Tanker Data Management Chatbot...")
     
-    # Initialize database if tables don't exist
-    try:
-        from init_db import init_database
-        logger.info("Checking database initialization...")
-        init_database()
-    except Exception as e:
-        logger.warning(f"Database initialization check failed: {e}")
-        logger.warning("Continuing anyway - make sure database is set up manually if needed.")
+    # Database initialization in background thread to avoid blocking startup
+    def init_db_async():
+        try:
+            from init_db import init_database
+            logger.info("Checking database initialization...")
+            init_database()
+        except Exception as e:
+            logger.warning(f"Database initialization check failed: {e}")
+            logger.warning("Continuing anyway - make sure database is set up manually if needed.")
     
+    # Run database check in background to avoid blocking startup
+    db_thread = threading.Thread(target=init_db_async, daemon=True)
+    db_thread.start()
+    
+    # Initialize services (non-blocking)
     initialize_services()
+    
+    logger.info("Server ready - health check available at /health")
 
 if __name__ == '__main__':
     import uvicorn

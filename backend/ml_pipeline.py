@@ -409,8 +409,13 @@ class TankerMLPipeline:
             logger.warning("ML predictions unavailable: scikit-learn not installed")
             return None
         
+        # Lazy-load models only when needed
         if self.models["arrival_time"] is None:
-            self.load_models()
+            try:
+                self.load_models()
+            except Exception as e:
+                logger.warning(f"Could not load ML models: {e}")
+                return None
         
         if self.models["arrival_time"] is None:
             return None
@@ -476,8 +481,13 @@ class TankerMLPipeline:
             logger.warning("ML predictions unavailable: scikit-learn not installed")
             return None
         
+        # Lazy-load models only when needed
         if self.models["delay_probability"] is None:
-            self.load_models()
+            try:
+                self.load_models()
+            except Exception as e:
+                logger.warning(f"Could not load ML models: {e}")
+                return None
         
         if self.models["delay_probability"] is None:
             return None
