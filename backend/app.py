@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -250,6 +250,59 @@ def fetch_tanker(tanker_id):
             conn.close()
         return None
 
+def get_fleet_stats():
+    """Get fleet statistics directly from database"""
+    conn = get_db_connection()
+    if not conn:
+        return None
+    
+    try:
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        query = """
+            SELECT 
+                COUNT(*) as total_tankers,
+                COUNT(DISTINCT t.current_status) as unique_statuses,
+                COUNT(DISTINCT d.depot_name) as unique_depots,
+                SUM(CASE WHEN t.current_status = 'In Transit' THEN 1 ELSE 0 END) as in_transit,
+                SUM(CASE WHEN t.current_status = 'At Source' THEN 1 ELSE 0 END) as at_source,
+                SUM(CASE WHEN t.current_status = 'Delayed' THEN 1 ELSE 0 END) as delayed,
+                SUM(CASE WHEN t.current_status = 'Reached Destination' THEN 1 ELSE 0 END) as reached_destination,
+                AVG(t.oil_volume_liters::numeric) as avg_volume,
+                AVG(t.trip_duration_hours::numeric) as avg_duration,
+                AVG(t.avg_speed_kmh::numeric) as avg_speed
+            FROM tankers t
+            LEFT JOIN depots d ON t.source_depot_id = d.depot_id
+        """
+        cursor.execute(query)
+        stats = cursor.fetchone()
+        cursor.close()
+        conn.close()
+        return make_json_serializable(dict(stats))
+    except Exception as e:
+        logger.error(f"Error getting fleet stats: {e}")
+        if conn:
+            conn.close()
+        return None
+
+def get_all_tanker_ids():
+    """Get list of all tanker IDs"""
+    conn = get_db_connection()
+    if not conn:
+        return None
+    
+    try:
+        cursor = conn.cursor()
+        cursor.execute("SELECT tanker_id FROM tankers ORDER BY tanker_id")
+        tanker_ids = [row[0] for row in cursor.fetchall()]
+        cursor.close()
+        conn.close()
+        return tanker_ids
+    except Exception as e:
+        logger.error(f"Error getting tanker IDs: {e}")
+        if conn:
+            conn.close()
+        return None
+
 def run_analytical_query(query_type, question):
     """Run SQL queries for analytical questions using normalized schema"""
     conn = get_db_connection()
@@ -352,26 +405,41 @@ def run_analytical_query(query_type, question):
         return None
 
 def detect_tanker_id(question):
-    """Detect if question contains a tanker ID (case-insensitive)"""
-    # Pattern to match tanker IDs like TKR1008, TNK-001, TKR-1008, etc.
+    """
+    Detect if question contains a valid tanker ID.
+    Strictly matches TNK-### format only.
+    Ignores common words like ID, WE, ALL, TOTAL.
+    """
+    # Ignore common words that might be mistaken for IDs
+    ignore_words = ['id', 'we', 'all', 'total', 'how', 'many', 'what', 'which', 'who']
+    question_lower = question.lower()
+    
+    # Check if question contains ignore words that might cause false matches
+    for word in ignore_words:
+        if word in question_lower and 'tnk' not in question_lower:
+            # If question has ignore words but no TNK, likely not asking for specific tanker
+            pass
+    
+    # Strict pattern: Only match TNK-### or TNK### format
+    # Must start with TNK followed by optional hyphen and digits
     patterns = [
-        r'TKR-?\d+',           # TKR1008 or TKR-1008
-        r'TNK-?\d+',           # TNK-001 or TNK001
-        r'tanker\s+([A-Z0-9-]+)',  # "tanker TNK-001"
-        r'tanker_id[:\s]+([A-Z0-9-]+)',  # "tanker_id: TNK-001"
-        r'ID[:\s]+([A-Z0-9-]+)',  # "ID: TNK-001"
+        r'\bTNK-?\d{3,}\b',  # TNK-001, TNK001, TNK-1234 (3+ digits)
+        r'tanker\s+(TNK-?\d{3,})',  # "tanker TNK-001"
+        r'tanker_id[:\s]+(TNK-?\d{3,})',  # "tanker_id: TNK-001"
     ]
     
     for pattern in patterns:
         match = re.search(pattern, question, re.IGNORECASE)
         if match:
             tanker_id = match.group(1) if match.groups() else match.group(0)
-            # Normalize to uppercase for consistency
+            # Normalize to uppercase
             tanker_id = tanker_id.upper()
-            # Normalize: if it's TKR followed by digits, add hyphen if missing
-            if re.match(r'TKR\d+', tanker_id, re.IGNORECASE):
-                tanker_id = re.sub(r'(TKR)(\d+)', r'\1-\2', tanker_id, flags=re.IGNORECASE)
-            return tanker_id
+            # Ensure hyphen format: TNK-###
+            if re.match(r'TNK\d+', tanker_id):
+                tanker_id = re.sub(r'(TNK)(\d+)', r'TNK-\2', tanker_id)
+            # Validate it's a proper format
+            if re.match(r'^TNK-\d{3,}$', tanker_id):
+                return tanker_id
     
     return None
 
@@ -893,23 +961,32 @@ async def chat(request: ChatRequest):
         # Initialize Chat Intelligence
         chat_intel = get_chat_intelligence()
         
-        # Step 1: Classify intent and topic using Chat Intelligence
+        # Step 1: Classify intent FIRST (before ID extraction)
         intent, confidence = chat_intel.classify_intent(user_question)
         logger.info(f"Chat Intelligence: intent={intent}, confidence={confidence:.2f}")
         
-        # Step 2: Check if question contains a tanker_id
-        tanker_id = detect_tanker_id(user_question)
+        # Step 2: Extract tanker ID ONLY if intent requires it
+        tanker_id = None
         ml_insights = None
-        logger.info(f"Detected tanker_id: {tanker_id}")
+        
+        # Only extract tanker ID for tanker-specific intents
+        if intent in ['tanker_summary', 'tanker_detail', 'eta_inquiry', 'delay_reason']:
+            tanker_id = detect_tanker_id(user_question)
+            logger.info(f"Detected tanker_id: {tanker_id}")
         
         # Step 3: Get topic classification
         topic = chat_intel.classify_topic(user_question, tanker_id)
         
-        # Step 4: Check for similar questions and get suggestions
-        similar_questions = chat_intel.find_similar_questions(user_question, limit=3)
-        response_suggestions = chat_intel.get_improved_response_suggestions(user_question, intent)
+        # Step 4: Check for similar questions and get suggestions (non-blocking)
+        similar_questions = []
+        response_suggestions = None
+        try:
+            similar_questions = chat_intel.find_similar_questions(user_question, limit=3)
+            response_suggestions = chat_intel.get_improved_response_suggestions(user_question, intent)
+        except Exception as e:
+            logger.warning(f"Error getting chat suggestions (non-critical): {e}")
         
-        # For dashboard context, only get ML insights if explicitly requested
+        # Step 5: Route based on intent
         question_lower = user_question.lower()
         should_get_ml = context == "full_chat" or any(keyword in question_lower for keyword in ['predict', 'forecast', 'estimate', 'future', 'likely', 'probability'])
         
@@ -918,7 +995,24 @@ async def chat(request: ChatRequest):
             should_get_ml = True
         
         try:
-            if tanker_id:
+            # Route based on intent
+            if intent == 'fleet_stats':
+                # Get fleet statistics
+                stats_data = get_fleet_stats()
+                if stats_data:
+                    response_text = call_openrouter_api(user_question, stats_data, None, context)
+                else:
+                    response_text = call_openrouter_api(user_question, None, None, context)
+            
+            elif intent == 'list_request':
+                # Get list of all tanker IDs
+                tanker_ids = get_all_tanker_ids()
+                if tanker_ids:
+                    response_text = call_openrouter_api(user_question, {'tanker_ids': tanker_ids, 'count': len(tanker_ids)}, None, context)
+                else:
+                    response_text = call_openrouter_api(user_question, None, None, context)
+            
+            elif tanker_id:
                 # Fetch specific tanker data
                 tanker_data = fetch_tanker(tanker_id)
                 if tanker_data:
@@ -935,7 +1029,7 @@ async def chat(request: ChatRequest):
                 else:
                     response_text = f"Sorry, I couldn't find a tanker with ID '{tanker_id}'. Please check the ID and try again."
             else:
-                # Step 5: Run analytical query
+                # Run analytical query for other intents
                 try:
                     query_results = run_analytical_query("auto", user_question)
                 except Exception as e:
@@ -1023,13 +1117,18 @@ async def chat_feedback(chat_id: int, feedback_type: str, feedback_value: Option
         return {"success": False, "message": str(e)}
 
 @app.get("/health")
-async def health():
-    """Health check endpoint for Render and monitoring"""
+async def health_get():
+    """Health check endpoint for Render and monitoring - GET method"""
     return {
         'status': 'ok',
         'timestamp': datetime.now().isoformat(),
         'service': 'tanker-chatbot'
     }
+
+@app.head("/health")
+async def health_head():
+    """Health check endpoint for Render and monitoring - HEAD method"""
+    return Response(status_code=200)
 
 @app.get("/api/health")
 async def api_health():

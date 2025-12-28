@@ -11,6 +11,7 @@ This ML focuses on:
 """
 import psycopg2
 from psycopg2 import extras
+from psycopg2 import errors as psycopg2_errors
 import re
 import json
 import logging
@@ -44,10 +45,13 @@ class ChatIntelligence:
     
     def __init__(self):
         self.intent_keywords = {
-            'tanker_status': ['status', 'where', 'location', 'position', 'current', 'now'],
+            'fleet_stats': ['how many', 'total', 'count', 'statistics', 'stats', 'summary', 'overview'],
+            'list_request': ['list', 'all', 'show all', 'give me all', 'every', 'all tankers', 'tanker ids', 'tanker id'],
+            'tanker_summary': ['tanker', 'status', 'where', 'location', 'position', 'current', 'now'],
+            'tanker_detail': ['detail', 'details', 'information', 'info', 'about'],
             'eta_inquiry': ['eta', 'arrival', 'arrive', 'when', 'time', 'reach', 'destination'],
             'delay_reason': ['delay', 'late', 'behind', 'slow', 'why', 'reason'],
-            'trend_analysis': ['trend', 'pattern', 'analysis', 'overview', 'summary', 'statistics'],
+            'trend_analysis': ['trend', 'pattern', 'analysis'],
             'general_help': ['help', 'how', 'what', 'explain', 'tell me', 'show']
         }
         
@@ -76,6 +80,119 @@ class ChatIntelligence:
         except Exception as e:
             logger.error(f"Database connection error: {e}")
             return None
+    
+    def ensure_chat_tables_exist(self):
+        """Self-healing: Create chat tables if they don't exist"""
+        conn = self.get_db_connection()
+        if not conn:
+            return False
+        
+        try:
+            cursor = conn.cursor()
+            
+            # Check if chat_history table exists
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = 'chat_history'
+                )
+            """)
+            chat_history_exists = cursor.fetchone()[0]
+            
+            if not chat_history_exists:
+                logger.info("Creating chat_history table...")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS chat_history (
+                        chat_id SERIAL PRIMARY KEY,
+                        user_message TEXT NOT NULL,
+                        bot_response TEXT NOT NULL,
+                        context VARCHAR(50) NOT NULL,
+                        tanker_id VARCHAR(50),
+                        intent VARCHAR(50),
+                        topic VARCHAR(50),
+                        confidence_score DECIMAL(5, 4),
+                        response_metadata JSONB,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_chat_history_context ON chat_history(context);
+                    CREATE INDEX IF NOT EXISTS idx_chat_history_tanker ON chat_history(tanker_id);
+                    CREATE INDEX IF NOT EXISTS idx_chat_history_intent ON chat_history(intent);
+                    CREATE INDEX IF NOT EXISTS idx_chat_history_created ON chat_history(created_at);
+                """)
+                logger.info("chat_history table created")
+            
+            # Check if chat_feedback table exists
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = 'chat_feedback'
+                )
+            """)
+            chat_feedback_exists = cursor.fetchone()[0]
+            
+            if not chat_feedback_exists:
+                logger.info("Creating chat_feedback table...")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS chat_feedback (
+                        feedback_id SERIAL PRIMARY KEY,
+                        chat_id INTEGER REFERENCES chat_history(chat_id) ON DELETE CASCADE,
+                        feedback_type VARCHAR(20) NOT NULL,
+                        feedback_value INTEGER,
+                        notes TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_chat_feedback_chat_id ON chat_feedback(chat_id);
+                """)
+                logger.info("chat_feedback table created")
+            
+            # Check if chat_learning_patterns table exists
+            cursor.execute("""
+                SELECT EXISTS (
+                    SELECT FROM information_schema.tables 
+                    WHERE table_schema = 'public' 
+                    AND table_name = 'chat_learning_patterns'
+                )
+            """)
+            chat_patterns_exists = cursor.fetchone()[0]
+            
+            if not chat_patterns_exists:
+                logger.info("Creating chat_learning_patterns table...")
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS chat_learning_patterns (
+                        pattern_id SERIAL PRIMARY KEY,
+                        question_pattern TEXT NOT NULL,
+                        intent VARCHAR(50) NOT NULL,
+                        topic VARCHAR(50),
+                        suggested_response_template TEXT,
+                        usage_count INTEGER DEFAULT 1,
+                        success_rate DECIMAL(5, 4),
+                        last_used_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+                cursor.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_chat_learning_patterns_intent ON chat_learning_patterns(intent);
+                    CREATE INDEX IF NOT EXISTS idx_chat_learning_patterns_usage ON chat_learning_patterns(usage_count DESC);
+                """)
+                logger.info("chat_learning_patterns table created")
+            
+            conn.commit()
+            cursor.close()
+            conn.close()
+            return True
+            
+        except Exception as e:
+            logger.warning(f"Error ensuring chat tables exist: {e}")
+            if conn:
+                conn.rollback()
+                conn.close()
+            return False
     
     def normalize_question(self, question: str) -> str:
         """
@@ -163,7 +280,13 @@ class ChatIntelligence:
         """
         Store a chat interaction in the database
         Returns: chat_id if successful, None otherwise
+        Self-healing: Creates tables if missing
         """
+        # Ensure tables exist (self-healing)
+        if not self.ensure_chat_tables_exist():
+            logger.warning("Chat tables not available - chat learning disabled")
+            return None
+        
         conn = self.get_db_connection()
         if not conn:
             return None
@@ -209,8 +332,18 @@ class ChatIntelligence:
             
             return chat_id
             
+        except psycopg2_errors.UndefinedTable as e:
+            # Table missing - try to create and retry once
+            logger.warning(f"Chat table missing: {e}. Attempting to create...")
+            if conn:
+                conn.rollback()
+                conn.close()
+            if self.ensure_chat_tables_exist():
+                # Retry once after creating tables
+                return self.store_chat_interaction(user_message, bot_response, context, tanker_id, intent, topic, confidence, response_metadata)
+            return None
         except Exception as e:
-            logger.error(f"Error storing chat interaction: {e}")
+            logger.warning(f"Error storing chat interaction (non-critical): {e}")
             if conn:
                 conn.rollback()
                 conn.close()
@@ -220,7 +353,12 @@ class ChatIntelligence:
         """
         Find similar questions from chat history
         Returns list of similar questions with their responses
+        Self-healing: Gracefully handles missing tables
         """
+        # Ensure tables exist
+        if not self.ensure_chat_tables_exist():
+            return []  # Return empty if tables unavailable
+        
         conn = self.get_db_connection()
         if not conn:
             return []
@@ -262,8 +400,13 @@ class ChatIntelligence:
             similar_questions.sort(key=lambda x: x['similarity'], reverse=True)
             return similar_questions[:limit]
             
+        except psycopg2_errors.UndefinedTable:
+            # Table missing - graceful degradation
+            if conn:
+                conn.close()
+            return []
         except Exception as e:
-            logger.error(f"Error finding similar questions: {e}")
+            logger.warning(f"Error finding similar questions (non-critical): {e}")
             if conn:
                 conn.close()
             return []
@@ -310,7 +453,12 @@ class ChatIntelligence:
         Record feedback for a chat interaction
         feedback_type: 'explicit_helpful', 'explicit_not_helpful', 'implicit_followup', 'implicit_clarification'
         feedback_value: 1 for positive, 0 for negative (None for implicit)
+        Self-healing: Creates tables if missing
         """
+        # Ensure tables exist
+        if not self.ensure_chat_tables_exist():
+            return False  # Fail silently if tables unavailable
+        
         conn = self.get_db_connection()
         if not conn:
             return False
@@ -333,8 +481,14 @@ class ChatIntelligence:
             
             return True
             
+        except psycopg2_errors.UndefinedTable:
+            # Table missing - graceful degradation
+            if conn:
+                conn.rollback()
+                conn.close()
+            return False
         except Exception as e:
-            logger.error(f"Error recording feedback: {e}")
+            logger.warning(f"Error recording feedback (non-critical): {e}")
             if conn:
                 conn.rollback()
                 conn.close()
@@ -342,6 +496,11 @@ class ChatIntelligence:
     
     def _load_learned_patterns(self):
         """Load learned patterns from database into cache"""
+        # Ensure tables exist
+        if not self.ensure_chat_tables_exist():
+            self.pattern_cache_loaded = True
+            return
+        
         conn = self.get_db_connection()
         if not conn:
             self.pattern_cache_loaded = True
@@ -376,8 +535,13 @@ class ChatIntelligence:
             self.pattern_cache_loaded = True
             logger.debug(f"Loaded {len(self.learned_patterns)} learned patterns")
             
+        except psycopg2_errors.UndefinedTable:
+            # Table missing - graceful degradation
+            self.pattern_cache_loaded = True
+            if conn:
+                conn.close()
         except Exception as e:
-            logger.error(f"Error loading learned patterns: {e}")
+            logger.warning(f"Error loading learned patterns (non-critical): {e}")
             self.pattern_cache_loaded = True
             if conn:
                 conn.close()
@@ -386,8 +550,13 @@ class ChatIntelligence:
         """
         Update learned patterns asynchronously (non-blocking)
         This runs in background to avoid slowing down chat responses
+        Self-healing: Creates tables if missing
         """
         try:
+            # Ensure tables exist
+            if not self.ensure_chat_tables_exist():
+                return  # Fail silently if tables unavailable
+            
             normalized_q = self.normalize_question(question)
             
             conn = self.get_db_connection()
@@ -429,9 +598,13 @@ class ChatIntelligence:
             # Reload cache
             self.pattern_cache_loaded = False
             
+        except psycopg2_errors.UndefinedTable:
+            # Table missing - graceful degradation
+            if 'conn' in locals() and conn:
+                conn.close()
         except Exception as e:
             logger.debug(f"Error updating learned patterns (non-critical): {e}")
-            if conn:
+            if 'conn' in locals() and conn:
                 conn.close()
     
     def _update_pattern_success_rate_async(self, chat_id: int, feedback_type: str, feedback_value: Optional[int]):
@@ -500,9 +673,13 @@ class ChatIntelligence:
             # Reload cache
             self.pattern_cache_loaded = False
             
+        except psycopg2_errors.UndefinedTable:
+            # Table missing - graceful degradation
+            if 'conn' in locals() and conn:
+                conn.close()
         except Exception as e:
             logger.debug(f"Error updating pattern success rate (non-critical): {e}")
-            if conn:
+            if 'conn' in locals() and conn:
                 conn.close()
     
     def get_followup_suggestions(self, question: str, intent: str, topic: str) -> List[str]:
